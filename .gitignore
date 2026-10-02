@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.local/
+local-data/
+*.sqlite*
+.jev-cache*
+dist/
