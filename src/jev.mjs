@@ -1,27 +1,29 @@
 // Objectif : fournir un client Jev validé et un double de test hors ligne déterministe.
 const MODEL = "jev-1.13.0";
 function probability(value) { return typeof value === "number" && value >= 0 && value <= 1; }
-function validate(response, questions, model) {
-  if (!response || response.model !== model || !response.answers) throw new Error("Réponse Jev invalide ou modèle inattendu");
+export function validateChoiceResponse(response, questions, model) {
+  if (!response || typeof response.model !== "string" || !response.model || (model !== undefined && response.model !== model) || !response.answers) throw new Error("Réponse Jev invalide ou modèle inattendu");
   for (const [id, question] of Object.entries(questions)) {
     const answer = response.answers[id];
     if (!answer || answer.type !== question.type) throw new Error(`Réponse invalide pour ${id}`);
     if (question.type === "choice") {
-      if (!(answer.choice in question.criteria) || !probability(answer.confidence)) throw new Error("Choix Jev invalide");
+      if ((typeof answer.choice !== "string" || !Object.hasOwn(question.criteria, answer.choice)) || !probability(answer.confidence)) throw new Error("Choix Jev invalide");
       for (const key of Object.keys(question.criteria)) if (!probability(answer.probabilities?.[key])) throw new Error("Probabilité Jev invalide");
     }
   }
   return response;
 }
 function retryDelay(response, attempt) {
-  const seconds = Number(response.headers.get("retry-after"));
+  const header = response.headers.get("retry-after");
+  const seconds = header === null ? NaN : Number(header);
   return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, 30_000) : 100 * 2 ** attempt;
 }
 export function createJevClient({ apiKey = process.env.TYPESAFE_API_KEY, endpoint = "https://api.typesafe.ai/v1/systemone", model = MODEL, timeoutMs = 30_000, fetchImpl = globalThis.fetch } = {}) {
   if (!apiKey) throw new Error("Définissez TYPESAFE_API_KEY");
   const url = new URL(endpoint);
-  if (url.protocol !== "https:" && !["127.0.0.1", "localhost"].includes(url.hostname)) throw new Error("Le point d’accès Jev doit utiliser HTTPS");
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname))) throw new Error("Le point d’accès Jev doit utiliser HTTPS");
   return { async decide({ state, questions, signal }) {
+    signal?.throwIfAborted();
     const body = JSON.stringify({ model, state, questions });
     if (Math.ceil(body.length / 4) > 24_000) throw new Error("État et questions au-delà du budget estimé de 24 000 jetons");
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -39,12 +41,12 @@ export function createJevClient({ apiKey = process.env.TYPESAFE_API_KEY, endpoin
         await new Promise((resolve) => setTimeout(resolve, retryDelay(response, attempt)));
         continue;
       }
-      return validate(await response.json(), questions, model);
+      return validateChoiceResponse(await response.json(), questions, model);
     }
     throw new Error("Budget de nouvelles tentatives Jev épuisé");
   } };
 }
 export function createFakeProvider(responder) {
   let calls = 0;
-  return { get calls() { return calls; }, async decide(request) { calls += 1; return validate(await responder(request, calls), request.questions, MODEL); } };
+  return { get calls() { return calls; }, async decide(request) { calls += 1; return validateChoiceResponse(await responder(request, calls), request.questions, MODEL); } };
 }

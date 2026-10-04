@@ -2,7 +2,7 @@
 
 **Rapproche un inventaire logiciel des avis CERT-FR et rend les correspondances incertaines révisables.**
 
-[![Tests](https://github.com/gbesse/jev-certfr-inventory-fit/actions/workflows/test.yml/badge.svg)](https://github.com/gbesse/jev-certfr-inventory-fit/actions/workflows/test.yml) [MIT](LICENSE) · Node.js 22+ · v0.1.0 · Documentation française
+[![Tests](https://github.com/gbesse/jev-certfr-inventory-fit/actions/workflows/test.yml/badge.svg)](https://github.com/gbesse/jev-certfr-inventory-fit/actions/workflows/test.yml) [MIT](LICENSE) · Node.js 22+ · v0.1.1 · Documentation française
 
 Jev CERT-FR Inventory Fit transforme un dossier sourcé en une catégorie explicite et révisable. Le dépôt sépare les règles vérifiables en code de la comparaison sémantique confiée à Jev.
 
@@ -45,6 +45,23 @@ npm run demo:revue
 
 Résultat attendu : **`revue_requise`**, avec `revue humaine : true`. `npm run demo` exécute les trois scénarios.
 
+## Exemple avec vos données
+
+```js
+import { assessInventoryExposure } from "./src/index.mjs";
+import { createJevClient } from "./src/jev.mjs";
+
+const résultat = await assessInventoryExposure({
+  id: "dossier-001",
+  text: "Votre texte métier expurgé, avec les éléments à comparer.",
+  source: { url: "https://example.test/document", date: "2026-10-04", licence: "à renseigner" },
+}, createJevClient());
+
+console.log(résultat.label, résultat.review);
+```
+
+Le paquet reçoit un dossier déjà préparé. L’ingestion du jeu de données public et les calculs déterministes décrits ci-dessous doivent être réalisés par l’application appelante. Il retourne une catégorie, une probabilité et un indicateur de revue ; les exemples hors ligne vérifient ce contrat avec des réponses simulées.
+
 ## Utilisation de la bibliothèque
 
 Importez `assessInventoryExposure` depuis `@gbesse/jev-certfr-inventory-fit`. Fournissez `createJevClient()` depuis l’export `./jev`, ou `createFakeProvider()` pour les tests hors ligne.
@@ -69,7 +86,7 @@ Les appels réels sont facultatifs et payants. Le client valide le modèle et le
 TYPESAFE_API_KEY=... node scripts/live-smoke.mjs
 ```
 
-N’envoyez jamais de secret, de donnée personnelle ni de dossier sensible non expurgé. Calibrez les seuils sur un corpus français annoté avant tout usage opérationnel.
+N’envoyez jamais de secret, de donnée personnelle ni de dossier sensible non expurgé. Une catégorie `review_required`, ou une absence de données choisie par le modèle, impose une revue même avec une confiance élevée. Calibrez les seuils sur un corpus français annoté avant tout usage opérationnel.
 
 ## Parcours comparatif
 

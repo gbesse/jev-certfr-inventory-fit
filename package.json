@@ -1,6 +1,6 @@
 {
   "name": "@gbesse/jev-certfr-inventory-fit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Rapproche un inventaire logiciel des avis CERT-FR et rend les correspondances incertaines révisables.",
   "type": "module",
   "license": "MIT",
